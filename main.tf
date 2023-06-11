@@ -13,6 +13,11 @@ provider "aws" {
   region = var.region
 }
 
+provider "aws" {
+  alias  = "apigateway"
+  region = var.region
+}
+
 # Create a CloudWatch Logs group for the Flask app
 resource "aws_cloudwatch_log_group" "flask_log_group" {
   name = "/ecs/flask-app"
@@ -44,12 +49,12 @@ resource "aws_ecs_task_definition" "flask_app" {
         ],
         "essential": true,
         "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-                "awslogs-group": aws_cloudwatch_log_group.flask_log_group.name,
-                "awslogs-region": var.region,
-                "awslogs-stream-prefix": "flask-app"
-        }
+          "logDriver": "awslogs",
+          "options": {
+                  "awslogs-group": aws_cloudwatch_log_group.flask_log_group.name,
+                  "awslogs-region": var.region,
+                  "awslogs-stream-prefix": "flask-app"
+          }
         }
     }])
 }
@@ -145,27 +150,32 @@ resource "aws_iam_role_policy_attachment" "task_execution_policy_attachment" {
 
 resource "aws_lb" "flask_app" {
   name               = "flask-app-lb"
-  load_balancer_type = "application"
+  load_balancer_type = "network"
   subnets            = var.subnets
+
+  enable_cross_zone_load_balancing = true
 }
 
 resource "aws_lb_target_group" "flask_app" {
   name        = "flask-app-target-group"
   port        = 8000
-  protocol    = "HTTP"
+  protocol    = "TCP"
   vpc_id      = var.vpc_id
   target_type = "ip" # Set the target type to "ip" for Fargate tasks
 
-  health_check {
-    path = "/"
-    port = "traffic-port"
+  depends_on = [
+    aws_lb.flask_app
+  ]
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
 resource "aws_lb_listener" "flask_app" {
   load_balancer_arn = aws_lb.flask_app.arn
-  port              = 8000
-  protocol          = "HTTP"
+  port              = 80
+  protocol          = "TCP"
 
   default_action {
     type             = "forward"
