@@ -161,7 +161,7 @@ resource "aws_lb_target_group" "flask_app" {
   port        = 8000
   protocol    = "TCP"
   vpc_id      = var.vpc_id
-  target_type = "ip" # Set the target type to "ip" for Fargate tasks
+  target_type = "ip"
 
   depends_on = [
     aws_lb.flask_app
@@ -181,4 +181,44 @@ resource "aws_lb_listener" "flask_app" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.flask_app.arn
   }
+
+}
+
+# Gateway
+resource "aws_api_gateway_rest_api" "flask_app" {
+  name        = "flask-app-api"
+  description = "API Gateway for the Flask app"
+}
+
+resource "aws_api_gateway_deployment" "flask_app" {
+  rest_api_id = aws_api_gateway_rest_api.flask_app.id
+  stage_name  = "prod"
+
+  depends_on = [
+    aws_api_gateway_integration.flask_app,
+    aws_api_gateway_method.flask_app,
+  ]
+}
+
+resource "aws_api_gateway_integration" "flask_app" {
+  rest_api_id             = aws_api_gateway_rest_api.flask_app.id
+  resource_id             = aws_api_gateway_resource.flask_app.id
+  http_method             = aws_api_gateway_method.flask_app.http_method
+  integration_http_method = "GET"
+  type                    = "HTTP_PROXY"
+  uri                     = "http://${aws_lb.flask_app.dns_name}/"
+}
+
+
+resource "aws_api_gateway_resource" "flask_app" {
+  rest_api_id = aws_api_gateway_rest_api.flask_app.id
+  parent_id   = aws_api_gateway_rest_api.flask_app.root_resource_id
+  path_part   = "hello"
+}
+
+resource "aws_api_gateway_method" "flask_app" {
+  rest_api_id   = aws_api_gateway_rest_api.flask_app.id
+  resource_id   = aws_api_gateway_resource.flask_app.id
+  http_method   = "GET"
+  authorization = "NONE"
 }
