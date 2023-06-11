@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Replace YOUR_USERNAME with your Docker Hub username
-DOCKER_USERNAME=jjeanjacques10
+DOCKER_USERNAME=YOUR_USERNAME
 
 # Replace YOUR_IMAGE_NAME with the desired image name
 IMAGE_NAME=flask-app-hello
